@@ -1,8 +1,9 @@
 {
-  "name": "undangan-pmr-smanel",
+ "name": "undangan-pmr-smanel",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "homepage": "https://pmrsmanel-ai.github.io/undangan/",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

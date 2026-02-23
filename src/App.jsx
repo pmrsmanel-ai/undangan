@@ -1,4 +1,5 @@
-import { useState, useEffect, createContext, useContext, useRef } from 'react';
+import React, { useState, useEffect, createContext, useContext, useRef } from 'react';
+// PERBAIKAN: Menggunakan HashRouter untuk kompatibilitas Cloudflare Pages
 import { HashRouter as Router, Routes, Route, Link, useNavigate, Navigate } from 'react-router-dom';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -26,19 +27,20 @@ import {
   Clock, 
   CheckCircle, 
   LogOut, 
-  Edit, 
+  Edit3, 
   List, 
-  Heart,
+  Mail,
   UserPlus,
   ArrowRight,
   Image as ImageIcon,
-  AlertCircle,
+  AlertTriangle,
   Map as MapIcon,
   Bell,
   X,
   Share2,
   History,
-  PlusCircle
+  PlusCircle,
+  CheckCircle2
 } from 'lucide-react';
 
 /**
@@ -90,11 +92,19 @@ const AuthProvider = ({ children }) => {
       if (storedUser) setUser(JSON.parse(storedUser));
       setLoading(false);
     } else if (auth) {
-      const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-        setUser(currentUser);
+      try {
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+          setUser(currentUser);
+          setLoading(false);
+        }, (error) => {
+          console.error("Auth state error:", error);
+          setLoading(false);
+        });
+        return () => unsubscribe();
+      } catch (err) {
+        console.error("Error setting up auth listener:", err);
         setLoading(false);
-      });
-      return () => unsubscribe();
+      }
     } else {
       setLoading(false);
     }
@@ -191,7 +201,7 @@ const DemoBanner = () => {
   if (!isDemoMode) return null;
   return (
     <div className="bg-yellow-500 text-white text-xs py-1 px-4 text-center font-medium flex items-center justify-center gap-2 z-50 relative">
-      <AlertCircle className="w-3 h-3" />
+      <AlertTriangle className="w-3 h-3" />
       Mode Demo: Database menggunakan penyimpanan lokal. Masukkan API Key Firebase untuk mode live.
     </div>
   );
@@ -216,7 +226,7 @@ const Navbar = () => {
       <nav className="bg-white shadow-md sticky top-0 z-40">
         <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
           <Link to="/" className="text-xl font-bold text-red-600 flex items-center gap-2">
-            <Heart className="w-6 h-6 fill-red-600" />
+            <Mail className="w-6 h-6 text-red-600" />
             PMR SMANEL
           </Link>
           <div className="flex items-center gap-4">
@@ -260,14 +270,14 @@ const Home = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const defaultEvent = {
-    title: "Kegiatan Donor Darah & Latihan Gabungan",
-    date: "Minggu, 31 Desember 2023",
-    time: "08:00 WIB - Selesai",
-    location: "Aula SMANEL",
-    description: "Mari bergabung bersama kami dalam kegiatan kemanusiaan dan latihan gabungan PMR se-Kabupaten.",
-    backgroundImage: "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&q=80&w=1600",
-    latitude: "-6.200000",
-    longitude: "106.816666"
+    title: "Belum Ada Informasi Kegiatan",
+    date: "-",
+    time: "-",
+    location: "-",
+    description: "Admin belum memasukkan data kegiatan terbaru.",
+    backgroundImage: "",
+    latitude: "",
+    longitude: ""
   };
 
   useEffect(() => {
@@ -664,7 +674,7 @@ const RsvpPage = () => {
 
 /**
  * ------------------------------------------------------------------
- * 6. HALAMAN LOGIN
+ * 6. HALAMAN LOGIN & DAFTAR AKUN
  * ------------------------------------------------------------------
  */
 const Login = () => {
@@ -678,28 +688,38 @@ const Login = () => {
     if (user) navigate('/admin');
   }, [user, navigate]);
 
-  const handleLogin = async (e) => {
+  const handleAuth = async (e) => {
     e.preventDefault();
     setError('');
     
     let emailToUse = username;
+    // Otomatis ubah "admin" menjadi email agar mudah diingat
     if (username.toLowerCase() === 'admin') {
       emailToUse = 'admin@smanel.com';
     }
 
     try {
+      // PROSES LOGIN BIASA (Tanpa fitur daftar publik)
       await login(emailToUse, password);
       navigate('/admin');
     } catch (err) {
       console.error(err);
-      if (isDemoMode) {
+      
+      // Penanganan spesifik untuk error login
+      if (err.code === 'auth/configuration-not-found') {
+        setError("Error: Fitur Login belum diaktifkan. Buka Firebase Console > Build > Authentication > Get Started > Aktifkan penyedia Email/Password.");
+      } else if (err.code === 'auth/invalid-api-key') {
+        setError("API Key tidak valid. Silakan periksa kembali firebaseConfig Anda.");
+      } else if (isDemoMode) {
         setError(err.message);
-      } else if(err.code === 'auth/invalid-email') {
-         setError("Format email salah. Jika pakai username, gunakan 'admin'.");
-      } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
-         setError("Password salah.");
       } else {
-         setError("Login gagal. Pastikan user sudah terdaftar di Firebase.");
+         if(err.code === 'auth/invalid-email') {
+            setError("Format email salah. Jika pakai username, gunakan 'admin'.");
+         } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+            setError("Akun tidak ditemukan atau password salah. Hubungi Administrator.");
+         } else {
+            setError("Login gagal. Pastikan user sudah terdaftar di Firebase.");
+         }
       }
     }
   };
@@ -708,18 +728,19 @@ const Login = () => {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="bg-white p-8 rounded-xl shadow-lg max-w-sm w-full">
         <div className="text-center mb-6">
-          <Heart className="w-12 h-12 text-red-600 mx-auto mb-2" />
+          <Mail className="w-12 h-12 text-red-600 mx-auto mb-2" />
           <h2 className="text-2xl font-bold text-gray-800">Login Panitia</h2>
         </div>
         
         {error && <Notification message={error} type="error" />}
         
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleAuth} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Username / Email</label>
             <input 
               type="text" 
               placeholder="admin" 
+              required
               className="w-full px-4 py-2 border rounded-lg focus:border-red-500 focus:outline-none"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -730,6 +751,7 @@ const Login = () => {
             <input 
               type="password" 
               placeholder="••••••" 
+              required
               className="w-full px-4 py-2 border rounded-lg focus:border-red-500 focus:outline-none"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -737,13 +759,14 @@ const Login = () => {
           </div>
           
           <div className="bg-blue-50 p-3 rounded text-xs text-blue-800 mb-2">
-            <p><strong>Tips:</strong> Gunakan user <code>admin</code> dan password {isDemoMode ? <code>admin</code> : <code>admin123</code>} untuk login.</p>
+            <p><strong>Info:</strong> Masukkan akun yang telah didaftarkan oleh Administrator.</p>
           </div>
 
           <button type="submit" className="w-full bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors">
             Masuk Dashboard
           </button>
         </form>
+
         <div className="mt-6 text-center border-t pt-4">
           <Link to="/" className="text-sm text-gray-500 hover:text-red-600">← Kembali ke Undangan</Link>
         </div>
@@ -789,15 +812,15 @@ const AdminDashboard = () => {
       if (saved) setEventForm(JSON.parse(saved));
       else {
           setEventForm({
-            id: 'demo-1',
-            title: "Kegiatan Donor Darah & Latihan Gabungan",
-            date: "Minggu, 31 Desember 2023",
-            time: "08:00 WIB - Selesai",
-            location: "Aula SMANEL",
-            description: "Mari bergabung bersama kami dalam kegiatan kemanusiaan dan latihan gabungan PMR se-Kabupaten.",
-            backgroundImage: "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&q=80&w=1600",
-            latitude: "-6.200000",
-            longitude: "106.816666"
+            id: 'main-event-id',
+            title: "",
+            date: "",
+            time: "",
+            location: "",
+            description: "",
+            backgroundImage: "",
+            latitude: "",
+            longitude: ""
           });
       }
     } else {
@@ -973,28 +996,28 @@ const AdminDashboard = () => {
            </span>
         </div>
         
-        <div className="flex flex-wrap space-x-2 mb-6 border-b border-gray-200">
+        <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-200">
           <button 
             onClick={() => setActiveTab('event')}
-            className={`pb-3 px-4 font-medium transition-colors border-b-2 ${activeTab === 'event' ? 'text-red-600 border-red-600' : 'text-gray-500 border-transparent hover:text-gray-700'}`}
+            className={`pb-3 px-4 font-medium transition-colors whitespace-nowrap border-b-2 ${activeTab === 'event' ? 'text-red-600 border-red-600' : 'text-gray-500 border-transparent hover:text-gray-700'}`}
           >
-            <div className="flex items-center gap-2"><Edit className="w-4 h-4"/> Edit Kegiatan</div>
+            <div className="flex items-center gap-2"><Edit3 className="w-4 h-4"/> Edit Kegiatan</div>
           </button>
           <button 
             onClick={() => setActiveTab('rsvp')}
-            className={`pb-3 px-4 font-medium transition-colors border-b-2 ${activeTab === 'rsvp' ? 'text-red-600 border-red-600' : 'text-gray-500 border-transparent hover:text-gray-700'}`}
+            className={`pb-3 px-4 font-medium transition-colors whitespace-nowrap border-b-2 ${activeTab === 'rsvp' ? 'text-red-600 border-red-600' : 'text-gray-500 border-transparent hover:text-gray-700'}`}
           >
             <div className="flex items-center gap-2"><List className="w-4 h-4"/> Data Tamu ({rsvpList.length})</div>
           </button>
           <button 
             onClick={() => setActiveTab('rekap')}
-            className={`pb-3 px-4 font-medium transition-colors border-b-2 ${activeTab === 'rekap' ? 'text-red-600 border-red-600' : 'text-gray-500 border-transparent hover:text-gray-700'}`}
+            className={`pb-3 px-4 font-medium transition-colors whitespace-nowrap border-b-2 ${activeTab === 'rekap' ? 'text-red-600 border-red-600' : 'text-gray-500 border-transparent hover:text-gray-700'}`}
           >
             <div className="flex items-center gap-2"><History className="w-4 h-4"/> Rekap Undangan</div>
           </button>
           <button 
             onClick={() => setActiveTab('users')}
-            className={`pb-3 px-4 font-medium transition-colors border-b-2 ${activeTab === 'users' ? 'text-red-600 border-red-600' : 'text-gray-500 border-transparent hover:text-gray-700'}`}
+            className={`pb-3 px-4 font-medium transition-colors whitespace-nowrap border-b-2 ${activeTab === 'users' ? 'text-red-600 border-red-600' : 'text-gray-500 border-transparent hover:text-gray-700'}`}
           >
             <div className="flex items-center gap-2"><UserPlus className="w-4 h-4"/> User Manager</div>
           </button>
@@ -1109,7 +1132,7 @@ const AdminDashboard = () => {
                       <tr key={evt.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 font-medium text-gray-900">
                           {evt.title}
-                          {isActive && <span className="ml-2 inline-flex items-center gap-1 text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full"><CheckCircle className="w-3 h-3"/> Aktif</span>}
+                          {isActive && <span className="ml-2 inline-flex items-center gap-1 text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full"><CheckCircle2 className="w-3 h-3"/> Aktif</span>}
                         </td>
                         <td className="px-6 py-4 text-gray-500">{evt.date}</td>
                         <td className="px-6 py-4 text-gray-500 truncate max-w-[150px]">{evt.location}</td>
@@ -1170,7 +1193,7 @@ const AdminDashboard = () => {
               </h3>
               {GOOGLE_SCRIPT_URL !== "URL_GOOGLE_SCRIPT_ANDA_DISINI" && (
                 <div className="text-xs text-green-700 bg-green-100 px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 border border-green-200">
-                  <CheckCircle className="w-3.5 h-3.5" />
+                  <CheckCircle2 className="w-3.5 h-3.5" />
                   Terhubung ke Google Sheets
                 </div>
               )}
