@@ -157,7 +157,63 @@ const useAuth = () => useContext(AuthContext);
 
 /**
  * ------------------------------------------------------------------
- * 3. KOMPONEN UI & UTILITIES
+ * KOMPONEN UTILITIES PETA (Iframe Picker Bebas Dependency)
+ * ------------------------------------------------------------------
+ */
+const LocationPickerIframe = ({ position, setPosition }) => {
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data && event.data.type === 'MAP_CLICK') {
+        setPosition({ 
+          latitude: event.data.lat.toFixed(6), 
+          longitude: event.data.lng.toFixed(6) 
+        });
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [setPosition]);
+
+  const mapHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+      <style>body, html, #map { margin: 0; padding: 0; width: 100%; height: 100%; cursor: crosshair; }</style>
+    </head>
+    <body>
+      <div id="map"></div>
+      <script>
+        var lat = ${position.latitude && !isNaN(parseFloat(position.latitude)) ? parseFloat(position.latitude) : -6.200000};
+        var lng = ${position.longitude && !isNaN(parseFloat(position.longitude)) ? parseFloat(position.longitude) : 106.816666};
+        var map = L.map('map').setView([lat, lng], ${position.latitude ? 15 : 10});
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+        var marker = L.marker([lat, lng]).addTo(map);
+        map.on('click', function(e) {
+          marker.setLatLng(e.latlng);
+          window.parent.postMessage({ type: 'MAP_CLICK', lat: e.latlng.lat, lng: e.latlng.lng }, '*');
+        });
+      </script>
+    </body>
+    </html>
+  `;
+
+  return (
+    <iframe 
+      title="Map Picker"
+      srcDoc={mapHtml}
+      style={{ width: '100%', height: '100%', border: 'none', borderRadius: '0.75rem' }}
+    />
+  );
+};
+
+/**
+ * ------------------------------------------------------------------
+ * 3. KOMPONEN UI & UTILITIES UMUM
  * ------------------------------------------------------------------
  */
 const Notification = ({ message, type }) => {
@@ -1010,7 +1066,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // PERBAIKAN: Fungsi Upload Gambar Menggunakan Layanan Gratis ImgBB
+  // Fungsi Upload Gambar Menggunakan Layanan Gratis ImgBB
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -1061,6 +1117,25 @@ const AdminDashboard = () => {
       alert(`Gagal mengunggah gambar: ${error.message}`);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  // Fungsi Dapatkan Lokasi Saat Ini
+  const handleGetCurrentLocation = () => {
+    if (navigator.geolocation) {
+      addToast("Mencari lokasi Anda...");
+      navigator.geolocation.getCurrentPosition((position) => {
+        setEventForm({
+          ...eventForm,
+          latitude: position.coords.latitude.toFixed(6),
+          longitude: position.coords.longitude.toFixed(6)
+        });
+        addToast("Lokasi berhasil didapatkan!");
+      }, (error) => {
+        alert("Gagal mendapatkan lokasi. Pastikan izin lokasi diaktifkan pada browser Anda.");
+      });
+    } else {
+      alert("Browser Anda tidak mendukung fitur lokasi.");
     }
   };
 
@@ -1164,16 +1239,34 @@ const AdminDashboard = () => {
                 <input type="text" className="w-full border p-2.5 sm:p-3 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-500 outline-none transition-all text-sm sm:text-base" value={eventForm.location} onChange={e => setEventForm({...eventForm, location: e.target.value})} />
               </div>
 
+              {/* PERBAIKAN: Tampilan Peta Interaktif */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                <div className="col-span-1 sm:col-span-2 flex items-center gap-2 text-sm font-semibold text-gray-700 mb-1">
-                   <MapIcon className="w-4 h-4 text-red-600"/> Koordinat Peta
+                <div className="col-span-1 sm:col-span-2 flex justify-between items-center mb-1">
+                   <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <MapIcon className="w-4 h-4 text-red-600"/> Koordinat Peta
+                   </div>
+                   <button 
+                     type="button" 
+                     onClick={handleGetCurrentLocation}
+                     className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1"
+                   >
+                     <MapPin className="w-3 h-3" /> Lokasi Saya
+                   </button>
                 </div>
+
+                <div className="col-span-1 sm:col-span-2 h-64 w-full rounded-xl overflow-hidden border border-gray-300 relative z-0 mb-2">
+                  <LocationPickerIframe 
+                    position={{ latitude: eventForm.latitude, longitude: eventForm.longitude }}
+                    setPosition={(pos) => setEventForm({...eventForm, latitude: pos.latitude, longitude: pos.longitude})}
+                  />
+                </div>
+                
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Latitude</label>
                   <input 
                     type="text" 
                     placeholder="-6.200000"
-                    className="w-full border p-2 rounded focus:ring-1 focus:ring-red-500 outline-none text-sm transition-all" 
+                    className="w-full border p-2 rounded focus:ring-1 focus:ring-red-500 outline-none text-sm transition-all bg-white" 
                     value={eventForm.latitude || ''} 
                     onChange={e => setEventForm({...eventForm, latitude: e.target.value})} 
                   />
@@ -1183,11 +1276,14 @@ const AdminDashboard = () => {
                   <input 
                     type="text" 
                     placeholder="106.816666"
-                    className="w-full border p-2 rounded focus:ring-1 focus:ring-red-500 outline-none text-sm transition-all" 
+                    className="w-full border p-2 rounded focus:ring-1 focus:ring-red-500 outline-none text-sm transition-all bg-white" 
                     value={eventForm.longitude || ''} 
                     onChange={e => setEventForm({...eventForm, longitude: e.target.value})} 
                   />
                 </div>
+                <p className="col-span-1 sm:col-span-2 text-[10px] text-gray-400 mt-[-5px] italic">
+                  * Anda bisa mengklik titik pada peta di atas untuk mengisi koordinat secara otomatis.
+                </p>
               </div>
 
               <div>
