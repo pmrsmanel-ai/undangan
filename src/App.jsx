@@ -259,6 +259,26 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+// UTILITY UNTUK FORMAT TANGGAL DAN WAKTU
+const formatDateUI = (dateStr) => {
+  if (!dateStr) return "-";
+  // Cek apakah format dari date picker (YYYY-MM-DD)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const dateObj = new Date(dateStr);
+    return dateObj.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  }
+  return dateStr; // fallback jika data lama
+};
+
+const formatTimeUI = (timeStr) => {
+  if (!timeStr) return "-";
+  // Cek apakah format dari time picker (HH:MM)
+  if (/^\d{2}:\d{2}$/.test(timeStr)) {
+    return `${timeStr} WIB`;
+  }
+  return timeStr;
+};
+
 /**
  * ------------------------------------------------------------------
  * 4. HALAMAN UTAMA (INFO KEGIATAN & SHARE)
@@ -319,7 +339,7 @@ const Home = () => {
         }
         element.setAttribute('content', content);
       };
-      const shortDesc = `Ikuti kegiatan kami pada ${eventData.date} di ${eventData.location}. ${eventData.description.substring(0, 100)}...`;
+      const shortDesc = `Ikuti kegiatan kami pada ${formatDateUI(eventData.date)} di ${eventData.location}. ${eventData.description.substring(0, 100)}...`;
       
       updateMeta('property', 'og:title', eventData.title);
       updateMeta('property', 'og:description', shortDesc);
@@ -337,7 +357,7 @@ const Home = () => {
     if (!eventData) return;
     const shareData = {
       title: eventData.title,
-      text: `Undangan Resmi: ${eventData.title}\n📅 ${eventData.date}\n📍 ${eventData.location}\n\n${eventData.description}`,
+      text: `Undangan Resmi: ${eventData.title}\n📅 ${formatDateUI(eventData.date)}\n📍 ${eventData.location}\n\n${eventData.description}`,
       url: window.location.href
     };
     if (navigator.share) {
@@ -380,11 +400,11 @@ const Home = () => {
           <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-6 mt-2 text-gray-200 text-sm sm:text-base md:text-lg font-medium w-full sm:w-auto items-center justify-center">
              <div className="flex items-center gap-2 bg-white/10 px-5 py-2.5 sm:py-2 rounded-full backdrop-blur-md w-full sm:w-auto justify-center">
                 <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
-                {eventData?.date}
+                {formatDateUI(eventData?.date)}
              </div>
              <div className="flex items-center gap-2 bg-white/10 px-5 py-2.5 sm:py-2 rounded-full backdrop-blur-md w-full sm:w-auto justify-center">
                 <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
-                {eventData?.time}
+                {formatTimeUI(eventData?.time)}
              </div>
           </div>
           
@@ -491,11 +511,11 @@ const Home = () => {
               <div className="flex flex-col gap-3 sm:gap-4 mb-6 sm:mb-8 p-4 sm:p-5 bg-red-50/50 rounded-xl sm:rounded-2xl border border-red-100 text-sm md:text-base text-gray-700">
                  <div className="flex items-center gap-3">
                    <div className="bg-white p-2 rounded-full shadow-sm flex-shrink-0"><Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-red-500"/></div>
-                   <span className="font-medium break-words">{eventData?.date}</span>
+                   <span className="font-medium break-words">{formatDateUI(eventData?.date)}</span>
                  </div>
                  <div className="flex items-center gap-3">
                    <div className="bg-white p-2 rounded-full shadow-sm flex-shrink-0"><Clock className="w-4 h-4 sm:w-5 sm:h-5 text-red-500"/></div>
-                   <span className="font-medium break-words">{eventData?.time}</span>
+                   <span className="font-medium break-words">{formatTimeUI(eventData?.time)}</span>
                  </div>
                  <div className="flex items-start gap-3">
                    <div className="bg-white p-2 rounded-full shadow-sm flex-shrink-0"><MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-red-500"/></div>
@@ -703,22 +723,27 @@ const Login = () => {
       await login(emailToUse, password);
       navigate('/admin');
     } catch (err) {
-      console.error(err);
+      // Menyembunyikan log error merah di console apabila disebabkan oleh kesalahan kredensial wajar
+      if (err.code !== 'auth/invalid-credential' && err.code !== 'auth/wrong-password' && err.code !== 'auth/user-not-found') {
+         console.error("Login Error:", err);
+      }
       
-      // Penanganan spesifik untuk error login
+      // Penanganan spesifik untuk error login ke tampilan pengguna
       if (err.code === 'auth/configuration-not-found') {
         setError("Error: Fitur Login belum diaktifkan. Buka Firebase Console > Build > Authentication > Get Started > Aktifkan penyedia Email/Password.");
       } else if (err.code === 'auth/invalid-api-key') {
         setError("API Key tidak valid. Silakan periksa kembali firebaseConfig Anda.");
+      } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+        setError("Gagal: Username atau Password salah. (Pastikan akun admin@smanel.com sudah dibuat di Firebase Console).");
+      } else if (err.code === 'auth/too-many-requests') {
+        setError("Terlalu banyak percobaan gagal. Silakan coba lagi nanti.");
       } else if (isDemoMode) {
         setError(err.message);
       } else {
          if(err.code === 'auth/invalid-email') {
             setError("Format email salah. Jika pakai username, gunakan 'admin'.");
-         } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
-            setError("Akun tidak ditemukan atau password salah. Hubungi Administrator.");
          } else {
-            setError("Login gagal. Pastikan user sudah terdaftar di Firebase.");
+            setError("Login gagal. Detail: " + err.message);
          }
       }
     }
@@ -789,6 +814,7 @@ const AdminDashboard = () => {
   const [rsvpList, setRsvpList] = useState([]);
   const [eventsHistory, setEventsHistory] = useState([]); 
   const [msg, setMsg] = useState('');
+  const [isUploading, setIsUploading] = useState(false); // State loading untuk upload gambar
   const { register } = useAuth(); 
 
   const [toasts, setToasts] = useState([]);
@@ -984,6 +1010,60 @@ const AdminDashboard = () => {
     }
   };
 
+  // PERBAIKAN: Fungsi Upload Gambar Menggunakan Layanan Gratis ImgBB
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Batasi ukuran gambar maksimal 2MB agar loading web tetap cepat
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Ukuran gambar terlalu besar. Maksimal 2MB.');
+      return;
+    }
+
+    setIsUploading(true);
+
+    if (isDemoMode) {
+       const reader = new FileReader();
+       reader.onloadend = () => {
+          setEventForm({ ...eventForm, backgroundImage: reader.result });
+          setIsUploading(false);
+          addToast("Gambar berhasil dimuat (Mode Demo)!");
+       };
+       reader.readAsDataURL(file);
+       return;
+    }
+
+    try {
+      // API KEY IMGBB ANDA SUDAH TERPASANG
+      const IMGBB_API_KEY = "e428d28e8f123d7c9ddda1900c361513"; 
+
+      const formData = new FormData();
+      formData.append('image', file);
+
+      // Mengirim gambar langsung ke server ImgBB
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+         // Mengambil URL Direct gambar yang sudah terupload dan menyimpannya di form
+         setEventForm({ ...eventForm, backgroundImage: data.data.url });
+         addToast("Gambar berhasil diunggah ke ImgBB!");
+      } else {
+         throw new Error(data.error?.message || "Gagal mengunggah ke server gambar.");
+      }
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      alert(`Gagal mengunggah gambar: ${error.message}`);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 relative">
       <ToastContainer toasts={toasts} removeToast={removeToast} />
@@ -1029,11 +1109,16 @@ const AdminDashboard = () => {
                <h3 className="text-lg font-bold text-gray-800">Konten Undangan Live</h3>
                <button 
                  type="button"
-                 onClick={() => setEventForm(prev => ({ 
-                   id: '', title: '', date: '', time: '', description: '', 
-                   location: prev.location, backgroundImage: prev.backgroundImage, 
-                   latitude: prev.latitude, longitude: prev.longitude 
-                 }))}
+                 onClick={() => {
+                   const latestLoc = eventsHistory.length > 0 ? eventsHistory[0] : eventForm;
+                   setEventForm(prev => ({ 
+                     id: '', title: '', date: '', time: '', description: '', 
+                     location: latestLoc.location || prev.location || '', 
+                     backgroundImage: prev.backgroundImage, 
+                     latitude: latestLoc.latitude || prev.latitude || '', 
+                     longitude: latestLoc.longitude || prev.longitude || '' 
+                   }))
+                 }}
                  className="flex items-center gap-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg transition-colors"
                >
                  <PlusCircle className="w-4 h-4" /> Buat Kegiatan Baru
@@ -1048,24 +1133,30 @@ const AdminDashboard = () => {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
-                   <ImageIcon className="w-4 h-4"/> URL Foto Background
+                   <ImageIcon className="w-4 h-4"/> Foto Background
                 </label>
-                <input 
-                  type="text" 
-                  placeholder="https://example.com/photo.jpg" 
-                  className="w-full border p-2.5 sm:p-3 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-500 outline-none transition-all text-sm sm:text-base" 
-                  value={eventForm.backgroundImage || ''} 
-                  onChange={e => setEventForm({...eventForm, backgroundImage: e.target.value})} 
-                />
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="URL Foto atau Upload dari Perangkat ->" 
+                    className="flex-1 w-full border p-2.5 sm:p-3 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-500 outline-none transition-all text-sm sm:text-base" 
+                    value={eventForm.backgroundImage || ''} 
+                    onChange={e => setEventForm({...eventForm, backgroundImage: e.target.value})} 
+                  />
+                  <label className={`cursor-pointer bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 px-4 py-2.5 sm:py-3 rounded-lg font-medium flex items-center justify-center transition-colors text-sm sm:text-base whitespace-nowrap ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                    {isUploading ? 'Mengunggah...' : 'Pilih Foto'}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={isUploading} />
+                  </label>
+                </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Hari & Tanggal</label>
-                  <input type="text" className="w-full border p-2.5 sm:p-3 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-500 outline-none transition-all text-sm sm:text-base" value={eventForm.date} onChange={e => setEventForm({...eventForm, date: e.target.value})} />
+                  <input type="date" className="w-full border p-2.5 sm:p-3 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-500 outline-none transition-all text-sm sm:text-base bg-white" value={eventForm.date} onChange={e => setEventForm({...eventForm, date: e.target.value})} />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Jam Pelaksanaan</label>
-                  <input type="text" className="w-full border p-2.5 sm:p-3 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-500 outline-none transition-all text-sm sm:text-base" value={eventForm.time} onChange={e => setEventForm({...eventForm, time: e.target.value})} />
+                  <input type="time" className="w-full border p-2.5 sm:p-3 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-500 outline-none transition-all text-sm sm:text-base bg-white" value={eventForm.time} onChange={e => setEventForm({...eventForm, time: e.target.value})} />
                 </div>
               </div>
               <div>
@@ -1134,7 +1225,7 @@ const AdminDashboard = () => {
                           {evt.title}
                           {isActive && <span className="ml-2 inline-flex items-center gap-1 text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full"><CheckCircle2 className="w-3 h-3"/> Aktif</span>}
                         </td>
-                        <td className="px-6 py-4 text-gray-500">{evt.date}</td>
+                        <td className="px-6 py-4 text-gray-500">{formatDateUI(evt.date)}</td>
                         <td className="px-6 py-4 text-gray-500 truncate max-w-[150px]">{evt.location}</td>
                         <td className="px-6 py-4 text-right flex justify-end gap-2">
                           <button 
