@@ -411,18 +411,23 @@ const Home = () => {
 
   const handleShare = async () => {
     if (!eventData) return;
-    const shareData = {
-      title: eventData.title,
-      text: `Undangan Resmi: ${eventData.title}\n📅 ${formatDateUI(eventData.date)}\n📍 ${eventData.location}\n\n${eventData.description}`,
-      url: window.location.href
-    };
+    
+    // PERBAIKAN: Memisahkan link utama dan link RSVP agar lebih spesifik
+    const baseUrl = window.location.href.split('#')[0]; // Mengambil URL utama (misal: domain.com/)
+    const rsvpUrl = `${baseUrl}#/rsvp`; // Membuat URL langsung ke halaman RSVP
+    
+    const shareText = `*UNDANGAN RESMI PMR SMANEL*\n\nHadir dan ikuti kegiatan:\n*${eventData.title}*\n\n📅 Tanggal: ${formatDateUI(eventData.date)}\n⏰ Waktu: ${formatTimeUI(eventData.time)}\n📍 Lokasi: ${eventData.location}\n\n📝 *Konfirmasi Kehadiran (RSVP):*\nMohon konfirmasi kehadiran Anda melalui tautan berikut:\n${rsvpUrl}\n\n🌐 *Buka Detail Undangan Lengkap:*\n${baseUrl}`;
+
     if (navigator.share) {
       try {
-        await navigator.share(shareData);
+        await navigator.share({
+          title: eventData.title,
+          text: shareText
+        });
       } catch (err) { console.log('User cancelled share'); }
     } else {
-      navigator.clipboard.writeText(`${shareData.text}\nLink: ${shareData.url}`);
-      alert('Link dan detail acara telah disalin ke clipboard! Siap ditempel di WhatsApp.');
+      navigator.clipboard.writeText(shareText);
+      alert('Rincian undangan dan tautan telah disalin! Siap ditempel (paste) di WhatsApp atau grup.');
     }
   };
 
@@ -443,13 +448,14 @@ const Home = () => {
         className="relative w-full min-h-[500px] md:h-[550px] bg-gray-800 text-white rounded-b-[2rem] md:rounded-b-[3rem] shadow-xl overflow-hidden flex flex-col" 
         style={backgroundStyle}
       >
-        <div className="absolute inset-0 bg-black/60 bg-gradient-to-t from-black/90 to-transparent"></div>
+        {/* PERBAIKAN: Mengurangi tingkat opacity (kegelapan) dari bg-black/60 menjadi bg-black/30 agar gambar lebih terang */}
+        <div className="absolute inset-0 bg-black/30 bg-gradient-to-t from-black/70 to-transparent"></div>
         
         <div className="relative z-10 flex-grow flex flex-col justify-center items-center text-center px-4 sm:px-6 max-w-4xl mx-auto py-10 md:py-12">
-          <p className="uppercase tracking-[0.3em] text-[10px] sm:text-xs md:text-sm font-semibold mb-3 sm:mb-4 text-red-400 border border-red-500/50 px-4 py-1 rounded-full bg-black/30 backdrop-blur-sm">
+          <p className="uppercase tracking-[0.3em] text-[10px] sm:text-xs md:text-sm font-semibold mb-3 sm:mb-4 text-red-400 border border-red-500/50 px-4 py-1 rounded-full bg-black/40 backdrop-blur-sm">
             Undangan Resmi
           </p>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 leading-tight drop-shadow-lg break-words w-full px-2 sm:px-0">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 leading-tight drop-shadow-lg break-words w-full px-2 sm:px-0 shadow-black/50">
             {eventData?.title}
           </h1>
           
