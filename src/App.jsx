@@ -318,19 +318,17 @@ const ProtectedRoute = ({ children }) => {
 // UTILITY UNTUK FORMAT TANGGAL DAN WAKTU
 const formatDateUI = (dateStr) => {
   if (!dateStr) return "-";
-  // Cek apakah format dari date picker (YYYY-MM-DD)
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     const dateObj = new Date(dateStr);
     return dateObj.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   }
-  return dateStr; // fallback jika data lama
+  return dateStr;
 };
 
 const formatTimeUI = (timeStr) => {
   if (!timeStr) return "-";
-  // Cek apakah format dari time picker (HH:MM)
   if (/^\d{2}:\d{2}$/.test(timeStr)) {
-    return `${timeStr} WIB`;
+    return `${timeStr} WITA`;
   }
   return timeStr;
 };
@@ -416,7 +414,8 @@ const Home = () => {
     const baseUrl = window.location.href.split('#')[0]; // Mengambil URL utama (misal: domain.com/)
     const rsvpUrl = `${baseUrl}#/rsvp`; // Membuat URL langsung ke halaman RSVP
     
-    const shareText = `*UNDANGAN RESMI PMR SMANEL*\n\nHadir dan ikuti kegiatan:\n*${eventData.title}*\n\n📅 Tanggal: ${formatDateUI(eventData.date)}\n⏰ Waktu: ${formatTimeUI(eventData.time)}\n📍 Lokasi: ${eventData.location}\n\n📝 *Konfirmasi Kehadiran (RSVP):*\nMohon konfirmasi kehadiran Anda melalui tautan berikut:\n${rsvpUrl}\n\n🌐 *Buka Detail Undangan Lengkap:*\n${baseUrl}`;
+    // PERBAIKAN: Mengubah "Tanggal" menjadi "Hari/Tanggal" dan Waktu otomatis menggunakan WITA
+    const shareText = `*UNDANGAN RESMI PMR SMANEL*\n\nHadir dan ikuti kegiatan:\n*${eventData.title}*\n\n📅 Hari/Tanggal: ${formatDateUI(eventData.date)}\n⏰ Waktu: ${formatTimeUI(eventData.time)}\n📍 Lokasi: ${eventData.location}\n\n📝 *Konfirmasi Kehadiran (RSVP):*\nMohon konfirmasi kehadiran Anda melalui tautan berikut:\n${rsvpUrl}\n\n🌐 *Buka Detail Undangan Lengkap:*\n${baseUrl}`;
 
     if (navigator.share) {
       try {
