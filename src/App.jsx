@@ -40,7 +40,8 @@ import {
   Share2,
   History,
   PlusCircle,
-  CheckCircle2
+  CheckCircle2,
+  Trash2
 } from 'lucide-react';
 
 /**
@@ -58,7 +59,7 @@ const firebaseConfig = {
 };
 
 // URL Google Apps Script (Opsional untuk rekap gsheets)
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyvdWX093tHi_e4o7UQ5tR_Myvy80u28sU3TO5CNG_JpgKz90PSeok0mt5gfnE9yCve/exec"; 
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxM5azLl8BfOK-Rh8SgG8IZgxIdkK4gV2rW0WajQaP9GWjpjVx2QUNihPYg5dIhubEm/exec"; 
 
 // PERBAIKAN: Matikan paksa Mode Demo karena kita sudah siap Live!
 const isDemoMode = false;
@@ -432,9 +433,24 @@ const Home = () => {
 
   if (loading) return <div className="text-center p-10">Memuat Undangan...</div>;
 
-  const backgroundStyle = eventData?.backgroundImage 
-    ? { backgroundImage: `url('${eventData.backgroundImage}')`, backgroundSize: 'cover', backgroundPosition: 'center' }
-    : {};
+  // PERBAIKAN: Menambahkan fallback default gambar jika background kosong atau undefined
+  const defaultBg = "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&q=80&w=1600";
+  let bgImageUrl = eventData?.backgroundImage || defaultBg;
+
+  // PERBAIKAN: Auto-fix untuk link Google Drive lama yang tersimpan di database agar tidak error
+  if (bgImageUrl.includes('drive.google.com/uc?export=view&id=')) {
+    const idMatch = bgImageUrl.match(/id=([a-zA-Z0-9_-]+)/);
+    if (idMatch && idMatch[1]) {
+      bgImageUrl = `https://lh3.googleusercontent.com/d/${idMatch[1]}`;
+    }
+  }
+
+  const backgroundStyle = { 
+    backgroundImage: `url('${bgImageUrl}')`, 
+    backgroundSize: 'cover', 
+    backgroundPosition: 'center',
+    backgroundColor: '#1f2937' // Fallback solid color (Tailwind gray-800)
+  };
 
   const hasCoordinates = eventData?.latitude && eventData?.longitude;
   const mapUrl = hasCoordinates 
@@ -444,11 +460,11 @@ const Home = () => {
   return (
     <div className="bg-gray-50 min-h-screen pb-10">
       <div 
-        className="relative w-full min-h-[500px] md:h-[550px] bg-gray-800 text-white rounded-b-[2rem] md:rounded-b-[3rem] shadow-xl overflow-hidden flex flex-col" 
+        className="relative w-full min-h-[500px] md:h-[550px] text-white rounded-b-[2rem] md:rounded-b-[3rem] shadow-xl overflow-hidden flex flex-col" 
         style={backgroundStyle}
       >
-        {/* PERBAIKAN: Mengurangi tingkat opacity (kegelapan) dari bg-black/60 menjadi bg-black/30 agar gambar lebih terang */}
-        <div className="absolute inset-0 bg-black/30 bg-gradient-to-t from-black/70 to-transparent"></div>
+        {/* Mengurangi tingkat opacity (kegelapan) dari bg-black/60 menjadi bg-black/30 agar gambar lebih terang */}
+        <div className="absolute inset-0 bg-black/40 bg-gradient-to-t from-black/80 to-transparent"></div>
         
         <div className="relative z-10 flex-grow flex flex-col justify-center items-center text-center px-4 sm:px-6 max-w-4xl mx-auto py-10 md:py-12">
           <p className="uppercase tracking-[0.3em] text-[10px] sm:text-xs md:text-sm font-semibold mb-3 sm:mb-4 text-red-400 border border-red-500/50 px-4 py-1 rounded-full bg-black/40 backdrop-blur-sm">
@@ -555,17 +571,19 @@ const Home = () => {
             
             {/* Isi Pop-up */}
             <div className="p-5 sm:p-6 md:p-8 overflow-y-auto flex-grow custom-scrollbar">
-              {eventData?.backgroundImage && (
-                <div className="w-full h-40 sm:h-48 md:h-64 rounded-xl sm:rounded-2xl overflow-hidden mb-5 sm:mb-6 shadow-sm border border-gray-100 relative group">
-                  <img 
-                    src={eventData.backgroundImage} 
-                    alt={eventData.title} 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                </div>
-              )}
+              {/* PERBAIKAN: Menggunakan URL background fallback jika kosong */}
+              <div className="w-full h-40 sm:h-48 md:h-64 rounded-xl sm:rounded-2xl overflow-hidden mb-5 sm:mb-6 shadow-sm border border-gray-100 relative group bg-gray-200">
+                <img 
+                  src={bgImageUrl} 
+                  alt={eventData?.title || 'Gambar Kegiatan'} 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  onError={(e) => { 
+                    e.target.onerror = null; 
+                    e.target.src = defaultBg; // Jika link error, pakai default
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              </div>
 
               <h4 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-4 sm:mb-6 leading-tight">{eventData?.title}</h4>
               
@@ -652,7 +670,8 @@ const RsvpPage = () => {
       });
 
       if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== "URL_GOOGLE_SCRIPT_ANDA_DISINI") {
-        const formToSubmit = new FormData();
+        // PERBAIKAN: Menggunakan URLSearchParams agar format parameter terbaca oleh Google Apps Script
+        const formToSubmit = new URLSearchParams();
         formToSubmit.append('Timestamp', new Date().toLocaleString('id-ID'));
         formToSubmit.append('Nama', formData.name);
         formToSubmit.append('Instansi', formData.institution);
@@ -662,6 +681,9 @@ const RsvpPage = () => {
         fetch(GOOGLE_SCRIPT_URL, { 
           method: 'POST', 
           body: formToSubmit,
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
           mode: 'no-cors' 
         }).catch(err => console.error("Google Sheets Error:", err));
       }
@@ -875,7 +897,10 @@ const AdminDashboard = () => {
   const [rsvpList, setRsvpList] = useState([]);
   const [eventsHistory, setEventsHistory] = useState([]); 
   const [msg, setMsg] = useState('');
-  const [isUploading, setIsUploading] = useState(false); // State loading untuk upload gambar
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  // PERBAIKAN: State baru khusus untuk tombol Kosongkan Data tamu
+  const [isClearingRsvp, setIsClearingRsvp] = useState(false);
   const { register } = useAuth(); 
 
   const [toasts, setToasts] = useState([]);
@@ -1071,61 +1096,47 @@ const AdminDashboard = () => {
     }
   };
 
-  // Fungsi Upload Gambar Menggunakan Layanan Gratis ImgBB
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    // Batasi ukuran gambar maksimal 2MB agar loading web tetap cepat
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Ukuran gambar terlalu besar. Maksimal 2MB.');
-      return;
-    }
-
-    setIsUploading(true);
+  // PERBAIKAN: Memperbarui fungsi hapus agar juga mengirim instruksi 'clear' ke Google Sheets
+  const handleClearRsvp = async () => {
+    if (!window.confirm("PERINGATAN: Apakah Anda yakin ingin MENGHAPUS SEMUA data tamu? Data yang dihapus di aplikasi dan di Google Sheets tidak dapat dikembalikan!")) return;
 
     if (isDemoMode) {
-       const reader = new FileReader();
-       reader.onloadend = () => {
-          setEventForm({ ...eventForm, backgroundImage: reader.result });
-          setIsUploading(false);
-          addToast("Gambar berhasil dimuat (Mode Demo)!");
-       };
-       reader.readAsDataURL(file);
+       localStorage.removeItem('demo_rsvps');
+       setRsvpList([]);
+       addToast("Semua data tamu berhasil dihapus (Mode Demo)!");
        return;
     }
 
+    setIsClearingRsvp(true);
     try {
-      // API KEY IMGBB ANDA SUDAH TERPASANG
-      const IMGBB_API_KEY = "e428d28e8f123d7c9ddda1900c361513"; 
+       // 1. Menghapus semua dokumen dari database Firebase
+       const promises = rsvpList.map(rsvp => deleteDoc(doc(db, "rsvps", rsvp.id)));
+       await Promise.all(promises);
 
-      const formData = new FormData();
-      formData.append('image', file);
+       // 2. Mengirim instruksi hapus ke Google Sheets
+       if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== "URL_GOOGLE_SCRIPT_ANDA_DISINI") {
+         const formToSubmit = new URLSearchParams();
+         formToSubmit.append('action', 'clear'); // Parameter instruksi hapus
 
-      // Mengirim gambar langsung ke server ImgBB
-      const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-        method: 'POST',
-        body: formData
-      });
+         await fetch(GOOGLE_SCRIPT_URL, { 
+           method: 'POST', 
+           body: formToSubmit,
+           headers: {
+             'Content-Type': 'application/x-www-form-urlencoded',
+           },
+           mode: 'no-cors' 
+         });
+       }
 
-      const data = await response.json();
-
-      if (data.success) {
-         // Mengambil URL Direct gambar yang sudah terupload dan menyimpannya di form
-         setEventForm({ ...eventForm, backgroundImage: data.data.url });
-         addToast("Gambar berhasil diunggah ke ImgBB!");
-      } else {
-         throw new Error(data.error?.message || "Gagal mengunggah ke server gambar.");
-      }
+       addToast("Semua data tamu berhasil dikosongkan dari aplikasi dan GSheets!");
     } catch (error) {
-      console.error("Error uploading image:", error);
-      alert(`Gagal mengunggah gambar: ${error.message}`);
+       console.error("Error clearing RSVP:", error);
+       alert("Terjadi kesalahan saat menghapus data: " + error.message);
     } finally {
-      setIsUploading(false);
+       setIsClearingRsvp(false);
     }
   };
 
-  // Fungsi Dapatkan Lokasi Saat Ini
   const handleGetCurrentLocation = () => {
     if (navigator.geolocation) {
       addToast("Mencari lokasi Anda...");
@@ -1211,24 +1222,35 @@ const AdminDashboard = () => {
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Nama Kegiatan (Judul Utama)</label>
                 <input type="text" className="w-full border p-2.5 sm:p-3 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-500 outline-none transition-all text-sm sm:text-base" value={eventForm.title} onChange={e => setEventForm({...eventForm, title: e.target.value})} />
               </div>
+              
+              {/* PERBAIKAN: Input Link Google Drive dengan Auto-Converter format baru */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
-                   <ImageIcon className="w-4 h-4"/> Foto Background
+                   <ImageIcon className="w-4 h-4"/> Link Foto Background (Google Drive)
                 </label>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input 
-                    type="text" 
-                    placeholder="URL Foto atau Upload dari Perangkat ->" 
-                    className="flex-1 w-full border p-2.5 sm:p-3 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-500 outline-none transition-all text-sm sm:text-base" 
-                    value={eventForm.backgroundImage || ''} 
-                    onChange={e => setEventForm({...eventForm, backgroundImage: e.target.value})} 
-                  />
-                  <label className={`cursor-pointer bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 px-4 py-2.5 sm:py-3 rounded-lg font-medium flex items-center justify-center transition-colors text-sm sm:text-base whitespace-nowrap ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                    {isUploading ? 'Mengunggah...' : 'Pilih Foto'}
-                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={isUploading} />
-                  </label>
-                </div>
+                <input 
+                  type="text" 
+                  placeholder="Tempel link bagikan Google Drive di sini..." 
+                  className="w-full border p-2.5 sm:p-3 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-500 outline-none transition-all text-sm sm:text-base" 
+                  value={eventForm.backgroundImage || ''} 
+                  onChange={(e) => {
+                    let url = e.target.value;
+                    // Logika Auto-Converter Google Drive link ke Direct Image link format lh3 (anti-blokir)
+                    const gDriveRegex = /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/;
+                    const match = url.match(gDriveRegex);
+                    if (match && match[1]) {
+                      // Menggunakan endpoint lh3 Google Content yang lebih aman untuk gambar
+                      url = `https://lh3.googleusercontent.com/d/${match[1]}`;
+                      addToast("Link Google Drive otomatis dikonversi!");
+                    }
+                    setEventForm({...eventForm, backgroundImage: url});
+                  }} 
+                />
+                <p className="text-[10px] text-gray-500 mt-1 italic leading-tight">
+                  * Pastikan akses file di Google Drive sudah diatur ke <strong>"Siapa saja yang memiliki link"</strong>. Paste link di atas dan sistem akan mengubahnya secara otomatis.
+                </p>
               </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Hari & Tanggal</label>
@@ -1296,7 +1318,14 @@ const AdminDashboard = () => {
                 <textarea rows="5" className="w-full border p-2.5 sm:p-3 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-500 outline-none transition-all text-sm sm:text-base custom-scrollbar" value={eventForm.description} onChange={e => setEventForm({...eventForm, description: e.target.value})} />
               </div>
               <div className="pt-2 sm:pt-4">
-                <button type="submit" className="w-full sm:w-auto bg-red-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-red-700 shadow-lg text-sm sm:text-base transition-colors">Simpan Perubahan</button>
+                <button 
+                  type="submit" 
+                  disabled={isSaving}
+                  className={`w-full sm:w-auto bg-red-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-red-700 shadow-lg text-sm sm:text-base transition-colors flex justify-center items-center gap-2 ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
+                >
+                  {isSaving && <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
+                  {isSaving ? 'Menyimpan Data...' : 'Simpan Perubahan'}
+                </button>
               </div>
             </form>
           </div>
@@ -1379,10 +1408,28 @@ const AdminDashboard = () => {
         {activeTab === 'rsvp' && (
           <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
             <div className="p-4 bg-gray-50 border-b flex justify-between items-center flex-wrap gap-4">
-              <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                 Daftar Tamu Masuk 
-                 <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">{rsvpList.length}</span>
-              </h3>
+              <div className="flex items-center gap-3">
+                <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                   Daftar Tamu Masuk 
+                   <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">{rsvpList.length}</span>
+                </h3>
+                {/* PERBAIKAN: Menggunakan isClearingRsvp untuk atribut disabled */}
+                {rsvpList.length > 0 && (
+                  <button 
+                    onClick={handleClearRsvp}
+                    disabled={isClearingRsvp}
+                    className={`flex items-center gap-1.5 text-xs bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg font-medium transition-colors border border-red-200 ${isClearingRsvp ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title="Hapus semua data tamu"
+                  >
+                    {isClearingRsvp ? (
+                      <svg className="animate-spin h-3.5 w-3.5 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5" />
+                    )}
+                    {isClearingRsvp ? 'Menghapus...' : 'Kosongkan Data'}
+                  </button>
+                )}
+              </div>
               {GOOGLE_SCRIPT_URL !== "URL_GOOGLE_SCRIPT_ANDA_DISINI" && (
                 <div className="text-xs text-green-700 bg-green-100 px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 border border-green-200">
                   <CheckCircle2 className="w-3.5 h-3.5" />
