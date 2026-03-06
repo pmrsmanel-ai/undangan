@@ -445,11 +445,13 @@ const Home = () => {
     }
   }
 
+  // PERBAIKAN: Mengubah properti agar gambar utuh (tidak terpotong)
   const backgroundStyle = { 
     backgroundImage: `url('${bgImageUrl}')`, 
-    backgroundSize: 'cover', 
-    backgroundPosition: 'center',
-    backgroundColor: '#1f2937' // Fallback solid color (Tailwind gray-800)
+    backgroundSize: 'contain', // SEBELUMNYA 'cover', diubah menjadi 'contain' agar gambar masuk semua
+    backgroundPosition: 'top center', // Menyelaraskan gambar ke bagian atas
+    backgroundRepeat: 'no-repeat', // Mencegah gambar terulang
+    backgroundColor: '#111827' // Warna latar gelap (Tailwind gray-900) untuk mengisi sisa ruang di bawah gambar
   };
 
   const hasCoordinates = eventData?.latitude && eventData?.longitude;
@@ -571,19 +573,18 @@ const Home = () => {
             
             {/* Isi Pop-up */}
             <div className="p-5 sm:p-6 md:p-8 overflow-y-auto flex-grow custom-scrollbar">
-              {/* PERBAIKAN: Menggunakan URL background fallback jika kosong */}
-              <div className="w-full h-40 sm:h-48 md:h-64 rounded-xl sm:rounded-2xl overflow-hidden mb-5 sm:mb-6 shadow-sm border border-gray-100 relative group bg-gray-200">
-                <img 
-                  src={bgImageUrl} 
-                  alt={eventData?.title || 'Gambar Kegiatan'} 
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  onError={(e) => { 
-                    e.target.onerror = null; 
-                    e.target.src = defaultBg; // Jika link error, pakai default
-                  }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              </div>
+              {/* PERBAIKAN: Memindahkan komentar ke luar blok kondisi render agar tidak menyebabkan error sintaks */}
+              {eventData?.backgroundImage && (
+                <div className="w-full aspect-video rounded-xl sm:rounded-2xl overflow-hidden mb-5 sm:mb-6 shadow-sm border border-gray-100 relative group bg-gray-50">
+                  <img 
+                    src={eventData.backgroundImage} 
+                    alt={eventData.title} 
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                </div>
+              )}
 
               <h4 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-4 sm:mb-6 leading-tight">{eventData?.title}</h4>
               
