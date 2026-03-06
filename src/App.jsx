@@ -29,7 +29,7 @@ import {
   LogOut, 
   Edit3, 
   List, 
-  Mail,
+  Heart,
   UserPlus,
   ArrowRight,
   Image as ImageIcon,
@@ -41,7 +41,8 @@ import {
   History,
   PlusCircle,
   CheckCircle2,
-  Trash2
+  Trash2,
+  Mail
 } from 'lucide-react';
 
 /**
@@ -394,7 +395,7 @@ const Home = () => {
         }
         element.setAttribute('content', content);
       };
-      const shortDesc = `Ikuti kegiatan kami pada ${formatDateUI(eventData.date)} di ${eventData.location}. ${eventData.description.substring(0, 100)}...`;
+      const shortDesc = `Ikuti kegiatan kami pada ${formatDateUI(eventData.date)} di ${eventData.location}. ${eventData.description?.substring(0, 100) || ''}...`;
       
       updateMeta('property', 'og:title', eventData.title);
       updateMeta('property', 'og:description', shortDesc);
@@ -411,11 +412,9 @@ const Home = () => {
   const handleShare = async () => {
     if (!eventData) return;
     
-    // PERBAIKAN: Memisahkan link utama dan link RSVP agar lebih spesifik
-    const baseUrl = window.location.href.split('#')[0]; // Mengambil URL utama (misal: domain.com/)
-    const rsvpUrl = `${baseUrl}#/rsvp`; // Membuat URL langsung ke halaman RSVP
+    const baseUrl = window.location.href.split('#')[0]; 
+    const rsvpUrl = `${baseUrl}#/rsvp`; 
     
-    // PERBAIKAN: Mengubah "Tanggal" menjadi "Hari/Tanggal" dan Waktu otomatis menggunakan WITA
     const shareText = `*UNDANGAN RESMI PMR SMANEL*\n\nHadir dan ikuti kegiatan:\n*${eventData.title}*\n\n📅 Hari/Tanggal: ${formatDateUI(eventData.date)}\n⏰ Waktu: ${formatTimeUI(eventData.time)}\n📍 Lokasi: ${eventData.location}\n\n📝 *Konfirmasi Kehadiran (RSVP):*\nMohon konfirmasi kehadiran Anda melalui tautan berikut:\n${rsvpUrl}\n\n🌐 *Buka Detail Undangan Lengkap:*\n${baseUrl}`;
 
     if (navigator.share) {
@@ -433,11 +432,9 @@ const Home = () => {
 
   if (loading) return <div className="text-center p-10">Memuat Undangan...</div>;
 
-  // PERBAIKAN: Menambahkan fallback default gambar jika background kosong atau undefined
   const defaultBg = "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&q=80&w=1600";
   let bgImageUrl = eventData?.backgroundImage || defaultBg;
 
-  // PERBAIKAN: Auto-fix untuk link Google Drive lama yang tersimpan di database agar tidak error
   if (bgImageUrl.includes('drive.google.com/uc?export=view&id=')) {
     const idMatch = bgImageUrl.match(/id=([a-zA-Z0-9_-]+)/);
     if (idMatch && idMatch[1]) {
@@ -445,43 +442,44 @@ const Home = () => {
     }
   }
 
-  // PERBAIKAN: Mengubah properti agar gambar utuh (tidak terpotong)
-  const backgroundStyle = { 
-    backgroundImage: `url('${bgImageUrl}')`, 
-    backgroundSize: 'contain', // SEBELUMNYA 'cover', diubah menjadi 'contain' agar gambar masuk semua
-    backgroundPosition: 'top center', // Menyelaraskan gambar ke bagian atas
-    backgroundRepeat: 'no-repeat', // Mencegah gambar terulang
-    backgroundColor: '#111827' // Warna latar gelap (Tailwind gray-900) untuk mengisi sisa ruang di bawah gambar
-  };
-
   const hasCoordinates = eventData?.latitude && eventData?.longitude;
   const mapUrl = hasCoordinates 
     ? `https://maps.google.com/maps?q=${eventData.latitude},${eventData.longitude}&t=&z=15&ie=UTF8&iwloc=&output=embed` 
     : "";
 
+  const backgroundStyle = { 
+    backgroundImage: `url('${bgImageUrl}')`, 
+    backgroundSize: 'cover', 
+    backgroundPosition: 'center',
+    backgroundColor: '#111827'
+  };
+
   return (
     <div className="bg-gray-50 min-h-screen pb-10">
+      
+      {/* PERBAIKAN: Mengembalikan teks ke atas gambar dengan overlay gradient */}
       <div 
-        className="relative w-full min-h-[500px] md:h-[550px] text-white rounded-b-[2rem] md:rounded-b-[3rem] shadow-xl overflow-hidden flex flex-col" 
+        className="relative w-full min-h-[520px] md:min-h-[600px] bg-gray-900 shadow-xl overflow-hidden rounded-b-[2rem] md:rounded-b-[3rem] flex flex-col justify-center"
         style={backgroundStyle}
       >
-        {/* Mengurangi tingkat opacity (kegelapan) dari bg-black/60 menjadi bg-black/30 agar gambar lebih terang */}
-        <div className="absolute inset-0 bg-black/40 bg-gradient-to-t from-black/80 to-transparent"></div>
+        {/* OVERLAY GRADIENT: Lapisan bayangan agar tulisan tetap kontras dan mudah dibaca */}
+        <div className="absolute inset-0 bg-black/40 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none"></div>
         
-        <div className="relative z-10 flex-grow flex flex-col justify-center items-center text-center px-4 sm:px-6 max-w-4xl mx-auto py-10 md:py-12">
+        {/* BAGIAN TEKS DAN TOMBOL */}
+        <div className="relative z-10 flex flex-col justify-center items-center text-center px-4 sm:px-6 max-w-4xl mx-auto py-12 md:py-20 text-white w-full">
           <p className="uppercase tracking-[0.3em] text-[10px] sm:text-xs md:text-sm font-semibold mb-3 sm:mb-4 text-red-400 border border-red-500/50 px-4 py-1 rounded-full bg-black/40 backdrop-blur-sm">
             Undangan Resmi
           </p>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 leading-tight drop-shadow-lg break-words w-full px-2 sm:px-0 shadow-black/50">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 leading-tight drop-shadow-lg break-words w-full px-2 sm:px-0">
             {eventData?.title}
           </h1>
           
           <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-6 mt-2 text-gray-200 text-sm sm:text-base md:text-lg font-medium w-full sm:w-auto items-center justify-center">
-             <div className="flex items-center gap-2 bg-white/10 px-5 py-2.5 sm:py-2 rounded-full backdrop-blur-md w-full sm:w-auto justify-center">
+             <div className="flex items-center gap-2 bg-white/10 px-5 py-2.5 sm:py-2 rounded-full backdrop-blur-md w-full sm:w-auto justify-center shadow-lg shadow-black/20">
                 <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
                 {formatDateUI(eventData?.date)}
              </div>
-             <div className="flex items-center gap-2 bg-white/10 px-5 py-2.5 sm:py-2 rounded-full backdrop-blur-md w-full sm:w-auto justify-center">
+             <div className="flex items-center gap-2 bg-white/10 px-5 py-2.5 sm:py-2 rounded-full backdrop-blur-md w-full sm:w-auto justify-center shadow-lg shadow-black/20">
                 <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
                 {formatTimeUI(eventData?.time)}
              </div>
@@ -495,7 +493,7 @@ const Home = () => {
             
             <button 
               onClick={handleShare}
-              className="w-full sm:w-auto bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white border border-white/30 font-semibold py-3.5 sm:py-3 px-6 rounded-full transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
+              className="w-full sm:w-auto bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white border border-white/30 font-semibold py-3.5 sm:py-3 px-6 rounded-full transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
             >
               <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
               Bagikan Undangan
@@ -505,7 +503,7 @@ const Home = () => {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 -mt-10 md:-mt-16 relative z-20 pb-8">
-        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl p-5 sm:p-6 md:p-8 mb-8">
+        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl p-5 sm:p-6 md:p-8 mb-8 mt-12 md:mt-16">
            <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
               <div className="flex-1 space-y-5 sm:space-y-6 w-full">
                 <div>
@@ -557,7 +555,6 @@ const Home = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
             
-            {/* Header Pop-up */}
             <div className="p-4 sm:p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/80">
               <h3 className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-2">
                 <List className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
@@ -570,19 +567,21 @@ const Home = () => {
                 <X className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
-            
             {/* Isi Pop-up */}
             <div className="p-5 sm:p-6 md:p-8 overflow-y-auto flex-grow custom-scrollbar">
-              {/* PERBAIKAN: Memindahkan komentar ke luar blok kondisi render agar tidak menyebabkan error sintaks */}
               {eventData?.backgroundImage && (
-                <div className="w-full aspect-video rounded-xl sm:rounded-2xl overflow-hidden mb-5 sm:mb-6 shadow-sm border border-gray-100 relative group bg-gray-50">
+                <div className="w-full aspect-video rounded-xl sm:rounded-2xl overflow-hidden mb-5 sm:mb-6 shadow-sm border border-gray-100 relative group bg-gray-100">
+                  {/* Gambar Pop-up dibuat aspect-video & object-cover agar full mengisi kotak tanpa black screen */}
                   <img 
-                    src={eventData.backgroundImage} 
+                    src={bgImageUrl} 
                     alt={eventData.title} 
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    onError={(e) => { e.target.style.display = 'none'; }}
+                    onError={(e) => { 
+                      e.target.onerror = null; 
+                      e.target.src = defaultBg; 
+                    }}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
                 </div>
               )}
 
@@ -611,7 +610,6 @@ const Home = () => {
               </div>
             </div>
             
-            {/* Footer Pop-up */}
             <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/80 flex justify-end gap-3 sm:flex-row flex-col">
               <button 
                 onClick={() => setIsModalOpen(false)} 
@@ -671,7 +669,6 @@ const RsvpPage = () => {
       });
 
       if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== "URL_GOOGLE_SCRIPT_ANDA_DISINI") {
-        // PERBAIKAN: Menggunakan URLSearchParams agar format parameter terbaca oleh Google Apps Script
         const formToSubmit = new URLSearchParams();
         formToSubmit.append('Timestamp', new Date().toLocaleString('id-ID'));
         formToSubmit.append('Nama', formData.name);
@@ -778,7 +775,7 @@ const RsvpPage = () => {
 
 /**
  * ------------------------------------------------------------------
- * 6. HALAMAN LOGIN & DAFTAR AKUN
+ * 6. HALAMAN LOGIN
  * ------------------------------------------------------------------
  */
 const Login = () => {
@@ -792,43 +789,28 @@ const Login = () => {
     if (user) navigate('/admin');
   }, [user, navigate]);
 
-  const handleAuth = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     
     let emailToUse = username;
-    // Otomatis ubah "admin" menjadi email agar mudah diingat
     if (username.toLowerCase() === 'admin') {
       emailToUse = 'admin@smanel.com';
     }
 
     try {
-      // PROSES LOGIN BIASA (Tanpa fitur daftar publik)
       await login(emailToUse, password);
       navigate('/admin');
     } catch (err) {
-      // Menyembunyikan log error merah di console apabila disebabkan oleh kesalahan kredensial wajar
-      if (err.code !== 'auth/invalid-credential' && err.code !== 'auth/wrong-password' && err.code !== 'auth/user-not-found') {
-         console.error("Login Error:", err);
-      }
-      
-      // Penanganan spesifik untuk error login ke tampilan pengguna
-      if (err.code === 'auth/configuration-not-found') {
-        setError("Error: Fitur Login belum diaktifkan. Buka Firebase Console > Build > Authentication > Get Started > Aktifkan penyedia Email/Password.");
-      } else if (err.code === 'auth/invalid-api-key') {
-        setError("API Key tidak valid. Silakan periksa kembali firebaseConfig Anda.");
-      } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
-        setError("Gagal: Username atau Password salah. (Pastikan akun admin@smanel.com sudah dibuat di Firebase Console).");
-      } else if (err.code === 'auth/too-many-requests') {
-        setError("Terlalu banyak percobaan gagal. Silakan coba lagi nanti.");
-      } else if (isDemoMode) {
+      console.error(err);
+      if (isDemoMode) {
         setError(err.message);
+      } else if(err.code === 'auth/invalid-email') {
+         setError("Format email salah. Jika pakai username, gunakan 'admin'.");
+      } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+         setError("Password salah.");
       } else {
-         if(err.code === 'auth/invalid-email') {
-            setError("Format email salah. Jika pakai username, gunakan 'admin'.");
-         } else {
-            setError("Login gagal. Detail: " + err.message);
-         }
+         setError("Login gagal. Pastikan user sudah terdaftar di Firebase.");
       }
     }
   };
@@ -837,19 +819,18 @@ const Login = () => {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="bg-white p-8 rounded-xl shadow-lg max-w-sm w-full">
         <div className="text-center mb-6">
-          <Mail className="w-12 h-12 text-red-600 mx-auto mb-2" />
+          <Heart className="w-12 h-12 text-red-600 mx-auto mb-2" />
           <h2 className="text-2xl font-bold text-gray-800">Login Panitia</h2>
         </div>
         
         {error && <Notification message={error} type="error" />}
         
-        <form onSubmit={handleAuth} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Username / Email</label>
             <input 
               type="text" 
               placeholder="admin" 
-              required
               className="w-full px-4 py-2 border rounded-lg focus:border-red-500 focus:outline-none"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -860,7 +841,6 @@ const Login = () => {
             <input 
               type="password" 
               placeholder="••••••" 
-              required
               className="w-full px-4 py-2 border rounded-lg focus:border-red-500 focus:outline-none"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -868,14 +848,13 @@ const Login = () => {
           </div>
           
           <div className="bg-blue-50 p-3 rounded text-xs text-blue-800 mb-2">
-            <p><strong>Info:</strong> Masukkan akun yang telah didaftarkan oleh Administrator.</p>
+            <p><strong>Tips:</strong> Gunakan user <code>admin</code> dan password {isDemoMode ? <code>admin</code> : <code>admin123</code>} untuk login.</p>
           </div>
 
           <button type="submit" className="w-full bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors">
             Masuk Dashboard
           </button>
         </form>
-
         <div className="mt-6 text-center border-t pt-4">
           <Link to="/" className="text-sm text-gray-500 hover:text-red-600">← Kembali ke Undangan</Link>
         </div>
@@ -898,10 +877,8 @@ const AdminDashboard = () => {
   const [rsvpList, setRsvpList] = useState([]);
   const [eventsHistory, setEventsHistory] = useState([]); 
   const [msg, setMsg] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  // PERBAIKAN: State baru khusus untuk tombol Kosongkan Data tamu
   const [isClearingRsvp, setIsClearingRsvp] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { register } = useAuth(); 
 
   const [toasts, setToasts] = useState([]);
@@ -925,15 +902,15 @@ const AdminDashboard = () => {
       if (saved) setEventForm(JSON.parse(saved));
       else {
           setEventForm({
-            id: 'main-event-id',
-            title: "",
-            date: "",
-            time: "",
-            location: "",
-            description: "",
-            backgroundImage: "",
-            latitude: "",
-            longitude: ""
+            id: 'demo-1',
+            title: "Kegiatan Donor Darah & Latihan Gabungan",
+            date: "Minggu, 31 Desember 2023",
+            time: "08:00 WIB - Selesai",
+            location: "Aula SMANEL",
+            description: "Mari bergabung bersama kami dalam kegiatan kemanusiaan dan latihan gabungan PMR se-Kabupaten.",
+            backgroundImage: "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&q=80&w=1600",
+            latitude: "-6.200000",
+            longitude: "106.816666"
           });
       }
     } else {
@@ -1030,6 +1007,7 @@ const AdminDashboard = () => {
     }
 
     try {
+      setIsSaving(true);
       await setDoc(doc(db, "event_details", "main_event"), eventToSave);
       await setDoc(doc(db, "events", eventId), eventToSave);
       setMsg("Data kegiatan diperbarui & disimpan ke rekap!");
@@ -1037,6 +1015,8 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error("Error updating event:", error);
       setMsg("Gagal update data.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1097,7 +1077,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // PERBAIKAN: Memperbarui fungsi hapus agar juga mengirim instruksi 'clear' ke Google Sheets
   const handleClearRsvp = async () => {
     if (!window.confirm("PERINGATAN: Apakah Anda yakin ingin MENGHAPUS SEMUA data tamu? Data yang dihapus di aplikasi dan di Google Sheets tidak dapat dikembalikan!")) return;
 
@@ -1110,14 +1089,12 @@ const AdminDashboard = () => {
 
     setIsClearingRsvp(true);
     try {
-       // 1. Menghapus semua dokumen dari database Firebase
        const promises = rsvpList.map(rsvp => deleteDoc(doc(db, "rsvps", rsvp.id)));
        await Promise.all(promises);
 
-       // 2. Mengirim instruksi hapus ke Google Sheets
        if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== "URL_GOOGLE_SCRIPT_ANDA_DISINI") {
          const formToSubmit = new URLSearchParams();
-         formToSubmit.append('action', 'clear'); // Parameter instruksi hapus
+         formToSubmit.append('action', 'clear'); 
 
          await fetch(GOOGLE_SCRIPT_URL, { 
            method: 'POST', 
@@ -1201,16 +1178,11 @@ const AdminDashboard = () => {
                <h3 className="text-lg font-bold text-gray-800">Konten Undangan Live</h3>
                <button 
                  type="button"
-                 onClick={() => {
-                   const latestLoc = eventsHistory.length > 0 ? eventsHistory[0] : eventForm;
-                   setEventForm(prev => ({ 
-                     id: '', title: '', date: '', time: '', description: '', 
-                     location: latestLoc.location || prev.location || '', 
-                     backgroundImage: prev.backgroundImage, 
-                     latitude: latestLoc.latitude || prev.latitude || '', 
-                     longitude: latestLoc.longitude || prev.longitude || '' 
-                   }))
-                 }}
+                 onClick={() => setEventForm(prev => ({ 
+                   id: '', title: '', date: '', time: '', description: '', 
+                   location: prev.location, backgroundImage: prev.backgroundImage, 
+                   latitude: prev.latitude, longitude: prev.longitude 
+                 }))}
                  className="flex items-center gap-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg transition-colors"
                >
                  <PlusCircle className="w-4 h-4" /> Buat Kegiatan Baru
@@ -1267,7 +1239,6 @@ const AdminDashboard = () => {
                 <input type="text" className="w-full border p-2.5 sm:p-3 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-500 outline-none transition-all text-sm sm:text-base" value={eventForm.location} onChange={e => setEventForm({...eventForm, location: e.target.value})} />
               </div>
 
-              {/* PERBAIKAN: Tampilan Peta Interaktif */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
                 <div className="col-span-1 sm:col-span-2 flex justify-between items-center mb-1">
                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -1324,7 +1295,6 @@ const AdminDashboard = () => {
                   disabled={isSaving}
                   className={`w-full sm:w-auto bg-red-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-red-700 shadow-lg text-sm sm:text-base transition-colors flex justify-center items-center gap-2 ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
-                  {isSaving && <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
                   {isSaving ? 'Menyimpan Data...' : 'Simpan Perubahan'}
                 </button>
               </div>
